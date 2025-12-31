@@ -5,9 +5,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 
 @Composable
-fun AirScreen() {
+fun AirScreen(navController: NavController) {
     var co2 by remember { mutableStateOf(510) }
     var nh3 by remember { mutableStateOf(14) }
     var h2s by remember { mutableStateOf(4) }
@@ -18,6 +19,13 @@ fun AirScreen() {
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Nút Back
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("← Quay lại")
+        }
         Text("CHẤT LƯỢNG KHÔNG KHÍ", style = MaterialTheme.typography.headlineSmall)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {

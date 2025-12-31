@@ -5,9 +5,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 
 @Composable
-fun SoilScreen() {
+fun SoilScreen(navController: NavController) {
     var soil by remember { mutableStateOf(35) }
     var pumpOn by remember { mutableStateOf(false) }
     var thresholdLow by remember { mutableStateOf(30) }
@@ -17,6 +18,12 @@ fun SoilScreen() {
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("← Quay lại")
+        }
         Text("KIỂM SOÁT ĐỘ ẨM ĐẤT", style = MaterialTheme.typography.headlineSmall)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {

@@ -11,6 +11,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.remember
+import androidx.navigation.compose.rememberNavController
+import com.example.smartfarm.screen.AppNavHost
+import com.example.smartfarm.ui.theme.SmartfarmTheme
+
 
 import com.example.smartfarm.screen.LightingScreen
 import com.example.smartfarm.screen.SoilScreen
@@ -24,16 +29,10 @@ import com.example.smartfarm.ui.theme.SmartfarmTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //enableEdgeToEdge()
         setContent {
             SmartfarmTheme {
-                //components()
-                //DashboardScreen()
-                //FeedingScreen()
-                //DoorScreen()
-                //SoilScreen()
-                //LightingScreen()
-                AirScreen()
+                val navController = rememberNavController()
+                AppNavHost(navController = navController)
             }
         }
     }
