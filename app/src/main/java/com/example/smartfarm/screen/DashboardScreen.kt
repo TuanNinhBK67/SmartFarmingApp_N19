@@ -46,9 +46,28 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.runtime.*
+import com.example.smartfarm.RetrofitClient
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+
+@Composable
+fun rememberSensorValue(deviceName: String): String {
+    var value by remember { mutableStateOf("...") }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(deviceName) {
+        while (true) {
+            try {
+                val data = RetrofitClient.api.getLatestSensorData(deviceName)
+                value = data.value.toString()
+            } catch (e: Exception) {
+                error = "Error!"
+            }
+            delay(30_000) // refresh mỗi 30s
+        }
+    }
+    return value
+}
 
 @Composable
 fun rememberCurrentTime(format: String = "HH:mm:ss"): String {
@@ -65,6 +84,11 @@ fun rememberCurrentTime(format: String = "HH:mm:ss"): String {
 
 @Composable
 fun DashboardScreen(navController: NavController) {
+    val lightValue = rememberSensorValue("cam_bien_anh_sang")
+    val tempValue = rememberSensorValue("cam_bien_nhiet_do")
+    val soilValue = rememberSensorValue("cam_bien_do_am")
+    val airValue = rememberSensorValue("cam_bien_khong_khi")
+
     val now = rememberCurrentTime("HH:mm:ss")
     val tankUpdated = rememberCurrentTime("HH:mm:ss")
     val systemUpdated = rememberCurrentTime("HH:mm:ss")
@@ -131,12 +155,12 @@ fun DashboardScreen(navController: NavController) {
                         Text("Live Sensor Readings", color = Color.Gray)
                         Spacer(Modifier.height(8.dp))
                         Row {
-                            SensorValue("Light Intensity", "1800 lux", now)
-                            SensorValue("Temperature", "45°C", now)
+                            SensorValue("Light Intensity", "$lightValue lux", now)
+                            SensorValue("Temperature", "$tempValue °C", now)
                         }
                         Row {
-                            SensorValue("Soil Moisture", "51%", now)
-                            SensorValue("Air Quality", "100", now)
+                            SensorValue("Soil Moisture", "$soilValue %", now)
+                            SensorValue("Air Quality", airValue, now)
                         }
                     }
                 }
@@ -152,7 +176,7 @@ fun DashboardScreen(navController: NavController) {
                         Text("Device Status", color = Color.Gray)
                         Spacer(Modifier.height(8.dp))
                         SystemStatusRow("Irrigation pump", Icons.Default.WaterDrop, Color(0xFF43A047), "ON", systemUpdated)
-                        SystemStatusRow("Door Control", Icons.Default.DoorFront, Color(0xFF388E3C), "ON", systemUpdated)
+                        SystemStatusRow("Door Control", Icons.Default.DoorFront, Color(0xFF8D6E63), "ON", systemUpdated)
                         SystemStatusRow("Ventilation Farm", Icons.Default.Air, Color(0xFFFFD600), "OFF", systemUpdated)
                     }
                 }
