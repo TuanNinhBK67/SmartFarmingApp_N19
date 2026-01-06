@@ -184,9 +184,9 @@ fun DashboardScreen(navController: NavController) {
     //Device status
     val ledOn = rememberDeviceOnOff("den_led", "led")      // LED Light
     val pumpOn = rememberDeviceOnOff("may_bom", "pump")    // Irrigation pump
-    val doorOpen = rememberDeviceOnOff("cua_dieu_khien", "door") // Door
-    val feedingOn = rememberDeviceOnOff("feeding_device", "motor") // Feeding motor
-    val fanOn = rememberDeviceOnOff("quat_gio", "fan")     // Ventilation Fan
+    val doorOpen = rememberDeviceOnOff("cung_cap_thuc_an", "servo") // Door
+    //val feedingOn = rememberDeviceOnOff("feeding_device", "motor") // Feeding motor
+    val fanOn = rememberDeviceOnOff("quat", "fan")     // Ventilation Fan
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Dashboard.route
@@ -302,30 +302,31 @@ fun DashboardScreen(navController: NavController) {
                             if (ledOn == true) "ON" else "OFF",
                             systemUpdated
                         )
-                        SystemStatusRow(
-                            "Feeding Motor",
-                            Icons.Default.Spa, // Hoặc đổi sang icon phù hợp hơn nếu muốn
-                            if (feedingOn == true) Color(0xFFFFD600) else Color.Gray,
-                            if (feedingOn == true) "ON" else "OFF",
-                            systemUpdated
-                        )
+                        //Feeding Monitor
+//                        SystemStatusRow(
+//                            "Feeding Motor",
+//                            Icons.Default.Spa, // Hoặc đổi sang icon phù hợp hơn nếu muốn
+//                            if (feedingOn == true) Color(0xFFFFD600) else Color.Gray,
+//                            if (feedingOn == true) "ON" else "OFF",
+//                            systemUpdated
+//                        )
                         SystemStatusRow(
                             "Irrigation pump",
                             Icons.Default.WaterDrop,
-                            if (pumpOn == true) Color(0xFFFFD600) else Color.Gray,
+                            if (pumpOn == true) Color(0xFF4FC3F7) else Color.Gray,
                             if (pumpOn == true) "ON" else "OFF",
                             systemUpdated
                         )
                         SystemStatusRow(
                             "Door Control",
                             Icons.Default.DoorFront,
-                            if (doorOpen == true) Color(0xFFFFD600) else Color.Gray,
+                            if (doorOpen == true) Color(0xFF8D6E63) else Color.Gray,
                             if (doorOpen == true) "ON" else "OFF",
                             systemUpdated
                         )
                         SystemStatusRow("Ventilation Farm",
                             Icons.Default.Air,
-                            if (fanOn == true) Color(0xFFFFD600) else Color.Gray,
+                            if (fanOn == true) Color(0xFF81D4FA) else Color.Gray,
                             if (fanOn == true) "ON" else "OFF",
                             systemUpdated)
                     }

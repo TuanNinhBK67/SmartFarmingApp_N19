@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,9 +21,11 @@ import androidx.compose.material.icons.filled.DoorFront
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LineStyle
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -35,21 +38,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.smartfarm.ChangeStatusRequest
 import com.example.smartfarm.RetrofitClient
 import kotlinx.coroutines.delay
 
-/**
- * Composable này sẽ liên tục lấy trạng thái Bật/Tắt của một thiết bị.
- * Nó trả về:
- * - true: nếu thiết bị đang Bật (value == 1.0)
- * - false: nếu thiết bị đang Tắt
- * - null: nếu đang tải hoặc có lỗi xảy ra.
- */
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+import android.content.Context
+import androidx.compose.runtime.MutableState
+import androidx.compose.ui.platform.LocalContext
+
 @Composable
 fun rememberDeviceState(deviceName: String, sensorType: String): Boolean? {
     // Sử dụng mutableStateOf để lưu trữ trạng thái có thể thay đổi
@@ -74,18 +83,45 @@ fun rememberDeviceState(deviceName: String, sensorType: String): Boolean? {
     return state.value
 }
 
+suspend fun setDeviceStatus(deviceName: String, sensorType: String, isOn: Boolean) {
+    val body = ChangeStatusRequest(deviceName, sensorType, if (isOn) 1 else 0)
+    RetrofitClient.api.changeSensorStatus(body)
+}
+
+fun saveLastUpdate(context: Context, key: String, value: String) {
+    val prefs = context.getSharedPreferences("device_prefs", Context.MODE_PRIVATE)
+    prefs.edit().putString(key, value).apply()
+}
+
+fun getLastUpdate(context: Context, key: String): String {
+    val prefs = context.getSharedPreferences("device_prefs", Context.MODE_PRIVATE)
+    return prefs.getString(key, "--:--:--") ?: "--:--:--"
+}
+
+@Composable
+fun rememberLastUpdateState(context: Context, key: String): MutableState<String> {
+    return remember(key) { mutableStateOf(getLastUpdate(context, key)) }
+}
 
 @Composable
 fun DeviceScreen(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Device.route
 
-    // Sử dụng hàm đã sửa để lấy trạng thái
+    // Trạng thái switch (lấy từ API thực tế nếu muốn)
     val ledSwitchState = rememberDeviceState("den_led", "led")
     val pumpSwitchState = rememberDeviceState("may_bom", "pump")
-    val doorSwitchState = rememberDeviceState("cua_dieu_khien", "door")
-    val fanSwitchState = rememberDeviceState("quat_gio", "fan")
-    val feedingSwitchState = rememberDeviceState("feeding_device", "motor")
+    val doorSwitchState = rememberDeviceState("cung_cap_thuc_an", "servo")
+    val fanSwitchState = rememberDeviceState("quat", "fan")
+    val scope = rememberCoroutineScope()
+
+    val context = LocalContext.current
+
+    //Update time
+    val ledLastUpdate = rememberLastUpdateState(context, "led_last_update")
+    val pumpLastUpdate = rememberLastUpdateState(context, "pump_last_update")
+    val doorLastUpdate = rememberLastUpdateState(context, "door_last_update")
+    val fanLastUpdate = rememberLastUpdateState(context, "fan_last_update")
 
     Scaffold(
         bottomBar = { BottomNavBar(navController, currentRoute) },
@@ -98,6 +134,7 @@ fun DeviceScreen(navController: NavController) {
                 .background(Color(0xFFF1F8F4))
                 .verticalScroll(rememberScrollState())
         ) {
+            // Header
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -106,114 +143,250 @@ fun DeviceScreen(navController: NavController) {
             ) {
                 Column(Modifier.padding(horizontal = 20.dp)) {
                     Text(
-                        "Device Management",
+                        "SmartFarm Control",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
                     Text(
-                        "Control all devices remotely",
+                        "Remote Farming Management",
                         color = Color(0xFFD0F8CE),
                         fontSize = 13.sp
                     )
                 }
             }
-            Column(
-                Modifier
-                    .padding(horizontal = 16.dp)
-            ){
-                Spacer(Modifier.height(14.dp))
-                Text("Device Control", style = MaterialTheme.typography.titleLarge, color = Color(0xFF256029))
-                Spacer(Modifier.height(10.dp))
 
-                // === Thẻ điều khiển được tái cấu trúc để dễ quản lý ===
-                DeviceControlCard(
-                    label = "LED Light",
+            // Title
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Spacer(Modifier.height(18.dp))
+                Text("System Controls", color = Color(0xFF256029), fontWeight = FontWeight.Bold, fontSize = 21.sp)
+                Text(
+                    "Connected – Real-time control active",
+                    color = Color(0xFF21916C),
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                // Card 1: LED Light
+                DeviceControlPanel(
                     icon = Icons.Default.Lightbulb,
-                    switchState = ledSwitchState,
-                    activeColor = Color(0xFFFFD600),
-                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                    iconColor = Color(0xFFFFD600),
+                    title = "LED Light",
+                    status = if (ledSwitchState == true) "ON" else "OFF",
+                    powerOn = ledSwitchState == true,
+                    onPowerChange = { newStatus ->
+                        scope.launch {
+                            setDeviceStatus("den_led", "led", newStatus)
+                            // 3. Cập nhật thời gian và lưu vào SharedPreferences
+                            val newTime = SimpleDateFormat("HH:mm:ss dd/MM/yyyy", Locale.getDefault()).format(Date())
+                            saveLastUpdate(context, "led_last_update", newTime)
+                            ledLastUpdate.value = newTime // Cập nhật UI ngay lập tức
+                        }
+                    },
+                    intensityLabel = "Light Intensity",
+                    intensityValue = 90,
+                    durationLabel = "Duration",
+                    durationValue = 120,
+                    lastUpdate = ledLastUpdate.value
                 )
 
-                DeviceControlCard(
-                    label = "Irrigation Pump",
+                // Card 2: Irrigation System
+                DeviceControlPanel(
                     icon = Icons.Default.WaterDrop,
-                    switchState = pumpSwitchState, // Đã sửa
-                    activeColor = Color(0xFF43A047),
-                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                    iconColor = Color(0xFF4FC3F7),
+                    title = "Irrigation Pump",
+                    status = if (pumpSwitchState == true) "ON" else "OFF",
+                    powerOn = pumpSwitchState == true,
+                    onPowerChange = { newStatus ->
+                        scope.launch {
+                            setDeviceStatus("may_bom", "pump", newStatus)
+                            val newTime = SimpleDateFormat("HH:mm:ss dd/MM/yyyy", Locale.getDefault()).format(Date())
+                            saveLastUpdate(context, "pump_last_update", newTime)
+                            pumpLastUpdate.value = newTime
+                        }
+                    },
+                    intensityLabel = "Flow Intensity",
+                    intensityValue = 75,
+                    durationLabel = "Duration",
+                    durationValue = 120,
+                    lastUpdate = pumpLastUpdate.value
                 )
 
-                DeviceControlCard(
-                    label = "Automatic Door",
+                // Card 3: Door Control
+                DeviceControlPanel(
                     icon = Icons.Default.DoorFront,
-                    switchState = doorSwitchState,
-                    activeColor = Color(0xFF388E3C),
-                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                    iconColor = Color(0xFF8D6E63),
+                    title = "Door Control",
+                    status = if (doorSwitchState == true) "ON" else "OFF",
+                    powerOn = doorSwitchState == true,
+                    onPowerChange = { newStatus ->
+                        scope.launch {
+                            setDeviceStatus("cung_cap_thuc_an", "servo", newStatus)
+                            val newTime = SimpleDateFormat("HH:mm:ss dd/MM/yyyy", Locale.getDefault()).format(Date())
+                            saveLastUpdate(context, "door_last_update", newTime)
+                            doorLastUpdate.value = newTime
+                        }
+                    },
+                    intensityLabel = "Door Duration",
+                    intensityValue = 90,
+                    durationLabel = "Duration",
+                    durationValue = 120,
+                    lastUpdate = doorLastUpdate.value
                 )
 
-                DeviceControlCard(
-                    label = "Ventilation Fan",
+                // Card 4: Ventilation Farm
+                DeviceControlPanel(
                     icon = Icons.Default.Air,
-                    switchState = fanSwitchState,
-                    activeColor = Color(0xFF4FC3F7),
-                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                    iconColor = Color(0xFF81D4FA),
+                    title = "Ventilation Farm",
+                    status = if (fanSwitchState == true) "ON" else "OFF",
+                    powerOn = fanSwitchState == true,
+                    onPowerChange = { newStatus ->
+                        scope.launch {
+                            setDeviceStatus("quat", "fan", newStatus)
+                            val newTime = SimpleDateFormat("HH:mm:ss dd/MM/yyyy", Locale.getDefault()).format(Date())
+                            saveLastUpdate(context, "fan_last_update", newTime)
+                            fanLastUpdate.value = newTime
+                        }
+                    },
+                    intensityLabel = "Fan Speed",
+                    intensityValue = 90,
+                    durationLabel = "Duration",
+                    durationValue = 120,
+                    lastUpdate = fanLastUpdate.value
                 )
 
-                DeviceControlCard(
-                    label = "Feeding System",
-                    icon = Icons.Default.LineStyle,
-                    switchState = feedingSwitchState,
-                    activeColor = Color(0xFF4FC3F7),
-                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
-                )
-
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(24.dp))
             }
         }
     }
 }
 
-/**
- * Composable tái sử dụng để hiển thị một thẻ điều khiển thiết bị.
- * Giúp mã nguồn gọn gàng và dễ bảo trì hơn.
- */
 @Composable
-private fun DeviceControlCard(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    switchState: Boolean?, // null: loading/error, true: on, false: off
-    activeColor: Color,
-    onCheckedChange: (Boolean) -> Unit
+fun DeviceControlPanel(
+    icon: ImageVector,
+    iconColor: Color,
+    title: String,
+    status: String,
+    powerOn: Boolean,
+    onPowerChange: (Boolean) -> Unit,
+    intensityLabel: String,
+    intensityValue: Int,
+    durationLabel: String,
+    durationValue: Int,
+    lastUpdate: String
 ) {
     OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp), // Thêm padding để các thẻ không dính vào nhau
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFF5FFF7))
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = if (switchState == true) activeColor else Color.Gray
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(label, fontWeight = FontWeight.Bold)
+        Column(Modifier.padding(18.dp)) {
+            // Header line: icon, title, status
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, contentDescription = title, tint = iconColor, modifier = Modifier.size(28.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(title, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+                Box(
+                    Modifier
+                        .background(Color(0xFFE3F6E8), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 3.dp)
+                ) {
+                    Text(status, color = Color(0xFF256029), fontSize = 13.sp)
+                }
             }
-            Switch(
-                checked = switchState ?: false,
-                // Vô hiệu hóa Switch nếu trạng thái là null (đang tải hoặc lỗi)
-                enabled = switchState != null,
-                onCheckedChange = onCheckedChange
-            )
+            Spacer(Modifier.height(13.dp))
+
+            // Power switch
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("System Power", fontSize = 15.sp)
+                Switch(checked = powerOn, onCheckedChange = onPowerChange, enabled = true)
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // Intensity slider (mô phỏng)
+            Text(intensityLabel, fontSize = 14.sp, color = Color(0xFF3E6055))
+            SliderBar(intensityValue)
+            Spacer(Modifier.height(7.dp))
+
+            // Duration
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(durationLabel, fontSize = 14.sp, color = Color(0xFF3E6055))
+                Text("$durationValue min", fontWeight = FontWeight.Medium)
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Nút bấm và thời gian
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+//                Row {
+//                    OutlinedButton(
+//                        onClick = { /* Start action */ },
+//                        shape = RoundedCornerShape(50),
+//                        colors = ButtonDefaults.outlinedButtonColors(
+//                            contentColor = Color.White,
+//                            containerColor = Color(0xFF256029)
+//                        ),
+//                        modifier = Modifier.padding(end = 8.dp)
+//                    ) {
+//                        Text("Start")
+//                    }
+//                    OutlinedButton(
+//                        onClick = { /* Emergency action */ },
+//                        shape = RoundedCornerShape(50),
+//                        colors = ButtonDefaults.outlinedButtonColors(
+//                            contentColor = Color.White,
+//                            containerColor = Color(0xFFD32F2F)
+//                        )
+//                    ) {
+//                        Text("Emergency Stop")
+//                    }
+//                }
+                Text("Last update: $lastUpdate", fontSize = 12.sp, color = Color.Gray)
+            }
         }
     }
 }
+
+@Composable
+fun SliderBar(value: Int) {
+    // Thanh slider giả lập (tuỳ bạn muốn code slider thực sự thì thêm state và onValueChange)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .background(Color(0xFFD8F2E0), RoundedCornerShape(8.dp))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fraction = value / 100f)
+                .height(6.dp)
+                .background(Color(0xFF43A047), RoundedCornerShape(8.dp))
+        )
+    }
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
+    ) {
+        Text("$value%", fontSize = 13.sp, color = Color(0xFF256029))
+    }
+}
+
