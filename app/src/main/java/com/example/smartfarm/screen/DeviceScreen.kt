@@ -17,10 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.DoorFront
-import androidx.compose.material.icons.filled.Engineering
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LineStyle
-import androidx.compose.material.icons.filled.Motorcycle
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -30,10 +28,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,18 +40,52 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.smartfarm.RetrofitClient
+import kotlinx.coroutines.delay
+
+/**
+ * Composable này sẽ liên tục lấy trạng thái Bật/Tắt của một thiết bị.
+ * Nó trả về:
+ * - true: nếu thiết bị đang Bật (value == 1.0)
+ * - false: nếu thiết bị đang Tắt
+ * - null: nếu đang tải hoặc có lỗi xảy ra.
+ */
+@Composable
+fun rememberDeviceState(deviceName: String, sensorType: String): Boolean? {
+    // Sử dụng mutableStateOf để lưu trữ trạng thái có thể thay đổi
+    val state = remember { mutableStateOf<Boolean?>(null) }
+
+    // LaunchedEffect sẽ chạy khi Composable xuất hiện và chạy lại nếu key thay đổi
+    // Vòng lặp while(true) bên trong đảm bảo nó liên tục cập nhật.
+    LaunchedEffect(deviceName, sensorType) {
+        while (true) {
+            try {
+                val data = RetrofitClient.api.getLatestSensorData(deviceName, sensorType)
+                state.value = data.value == 1.0
+            } catch (e: Exception) {
+                // Nếu có lỗi, đặt state là null để giao diện biết và vô hiệu hóa switch
+                state.value = null
+            }
+            // Đợi 5 giây trước khi lấy lại trạng thái lần nữa
+            delay(5000) // 5000ms = 5 giây
+        }
+    }
+    // Trả về giá trị state hiện tại
+    return state.value
+}
+
 
 @Composable
 fun DeviceScreen(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Device.route
 
-    // Fake state để test giao diện
-    var ledOn by remember { mutableStateOf(false) }
-    var pumpOn by remember { mutableStateOf(false) }
-    var doorOpen by remember { mutableStateOf(false) }
-    var fanOn by remember { mutableStateOf(false) }
-    var feedingOn by remember { mutableStateOf(false) }
+    // Sử dụng hàm đã sửa để lấy trạng thái
+    val ledSwitchState = rememberDeviceState("den_led", "led")
+    val pumpSwitchState = rememberDeviceState("may_bom", "pump")
+    val doorSwitchState = rememberDeviceState("cua_dieu_khien", "door")
+    val fanSwitchState = rememberDeviceState("quat_gio", "fan")
+    val feedingSwitchState = rememberDeviceState("feeding_device", "motor")
 
     Scaffold(
         bottomBar = { BottomNavBar(navController, currentRoute) },
@@ -94,120 +126,94 @@ fun DeviceScreen(navController: NavController) {
                 Text("Device Control", style = MaterialTheme.typography.titleLarge, color = Color(0xFF256029))
                 Spacer(Modifier.height(10.dp))
 
-                // LED Light Control
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
-                ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Lightbulb, contentDescription = "LED", tint = if (ledOn) Color(0xFFFFD600) else Color.Gray)
-                            Spacer(Modifier.width(12.dp))
-                            Text("LED Light", fontWeight = FontWeight.Bold)
-                        }
-                        Switch(checked = ledOn, onCheckedChange = { ledOn = it })
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
+                // === Thẻ điều khiển được tái cấu trúc để dễ quản lý ===
+                DeviceControlCard(
+                    label = "LED Light",
+                    icon = Icons.Default.Lightbulb,
+                    switchState = ledSwitchState,
+                    activeColor = Color(0xFFFFD600),
+                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                )
 
-                // Pump Control
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
-                ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.WaterDrop, contentDescription = "Pump", tint = if (pumpOn) Color(0xFF43A047) else Color.Gray)
-                            Spacer(Modifier.width(12.dp))
-                            Text("Irrigation Pump", fontWeight = FontWeight.Bold)
-                        }
-                        Switch(checked = pumpOn, onCheckedChange = { pumpOn = it })
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
+                DeviceControlCard(
+                    label = "Irrigation Pump",
+                    icon = Icons.Default.WaterDrop,
+                    switchState = pumpSwitchState, // Đã sửa
+                    activeColor = Color(0xFF43A047),
+                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                )
 
-                // Door Control
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
-                ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.DoorFront, contentDescription = "Door", tint = if (doorOpen) Color(0xFF388E3C) else Color.Gray)
-                            Spacer(Modifier.width(12.dp))
-                            Text("Automatic Door", fontWeight = FontWeight.Bold)
-                        }
-                        Switch(checked = doorOpen, onCheckedChange = { doorOpen = it })
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
+                DeviceControlCard(
+                    label = "Automatic Door",
+                    icon = Icons.Default.DoorFront,
+                    switchState = doorSwitchState,
+                    activeColor = Color(0xFF388E3C),
+                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                )
 
-                // Fan Control (nếu có, có thể ẩn nếu farm bạn chưa lắp)
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
-                ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Air, contentDescription = "Fan", tint = if (fanOn) Color(0xFF4FC3F7) else Color.Gray)
-                            Spacer(Modifier.width(12.dp))
-                            Text("Ventilation Fan", fontWeight = FontWeight.Bold)
-                        }
-                        Switch(checked = fanOn, onCheckedChange = { fanOn = it })
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
+                DeviceControlCard(
+                    label = "Ventilation Fan",
+                    icon = Icons.Default.Air,
+                    switchState = fanSwitchState,
+                    activeColor = Color(0xFF4FC3F7),
+                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                )
 
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
-                ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LineStyle, contentDescription = "Rotate Motor", tint = if (feedingOn) Color(0xFF4FC3F7) else Color.Gray)
-                            Spacer(Modifier.width(12.dp))
-                            Text("Feeding System", fontWeight = FontWeight.Bold)
-                        }
-                        Switch(checked = feedingOn, onCheckedChange = { feedingOn = it })
-                    }
-                }
+                DeviceControlCard(
+                    label = "Feeding System",
+                    icon = Icons.Default.LineStyle,
+                    switchState = feedingSwitchState,
+                    activeColor = Color(0xFF4FC3F7),
+                    onCheckedChange = { /* Logic điều khiển sẽ thêm ở đây */ }
+                )
+
                 Spacer(Modifier.height(20.dp))
             }
+        }
+    }
+}
+
+/**
+ * Composable tái sử dụng để hiển thị một thẻ điều khiển thiết bị.
+ * Giúp mã nguồn gọn gàng và dễ bảo trì hơn.
+ */
+@Composable
+private fun DeviceControlCard(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    switchState: Boolean?, // null: loading/error, true: on, false: off
+    activeColor: Color,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp), // Thêm padding để các thẻ không dính vào nhau
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = if (switchState == true) activeColor else Color.Gray
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(label, fontWeight = FontWeight.Bold)
+            }
+            Switch(
+                checked = switchState ?: false,
+                // Vô hiệu hóa Switch nếu trạng thái là null (đang tải hoặc lỗi)
+                enabled = switchState != null,
+                onCheckedChange = onCheckedChange
+            )
         }
     }
 }
