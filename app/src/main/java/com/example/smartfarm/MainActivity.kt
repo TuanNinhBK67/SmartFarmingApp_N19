@@ -19,11 +19,7 @@ import com.example.smartfarm.ui.theme.SmartfarmTheme
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 
-import com.example.smartfarm.screen.LightingScreen
-import com.example.smartfarm.screen.SoilScreen
-import com.example.smartfarm.screen.DoorScreen
-import com.example.smartfarm.screen.AirScreen
-import com.example.smartfarm.screen.FeedingScreen
+
 import com.example.smartfarm.screen.DashboardScreen
 import com.example.smartfarm.ui.theme.SmartfarmTheme
 

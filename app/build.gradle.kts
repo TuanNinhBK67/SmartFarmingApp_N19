@@ -64,4 +64,13 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.0")
+
+    // Socket.IO
+    implementation("io.socket:socket.io-client:2.1.1")
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+    // Gson
+    implementation("com.google.code.gson:gson:2.10.1")
 }

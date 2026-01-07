@@ -330,7 +330,6 @@ fun DashboardScreen(navController: NavController) {
                 if (showAirAlert) {
                     AlertCard("Air quality is $airStatus!", airColor)
                 }
-
                 Spacer(Modifier.height(12.dp))
 
                 Row(
