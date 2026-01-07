@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.smartfarm.notificationLog
+
+val notificationLog = mutableStateListOf<String>()
 
 @Composable
 fun NotificationScreen(navController: NavController) {
@@ -56,31 +59,34 @@ fun NotificationScreen(navController: NavController) {
             }
 
             // --- Nội dung chính (placeholder) ---
-            Column(
-                Modifier
-                    .padding(horizontal = 16.dp)
-            ) {
+            Column(Modifier.padding(horizontal = 16.dp)) {
                 Spacer(Modifier.height(18.dp))
                 Text("Alerts & Warnings", fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = Color(0xFF256029))
                 Spacer(Modifier.height(10.dp))
 
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
-                ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFFFF9800))
-                        Spacer(Modifier.width(10.dp))
-                        Text("Soil moisture below threshold! (10:20:32)", fontWeight = FontWeight.Medium)
+                if (notificationLog.isEmpty()) {
+                    Text("No alerts!", color = Color.Gray)
+                } else {
+                    notificationLog.reversed().forEach { msg ->
+                        OutlinedCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 10.dp),
+                            colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFFBF2))
+                        ) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFFFF9800))
+                                Spacer(Modifier.width(10.dp))
+                                Text(msg, fontWeight = FontWeight.Medium)
+                            }
+                        }
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                // Thêm các card cảnh báo khác tại đây
             }
         }
     }

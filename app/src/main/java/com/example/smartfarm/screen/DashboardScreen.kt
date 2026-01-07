@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.DoorFront
 import androidx.compose.material.icons.filled.FilterBAndW
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.ModeFanOff
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Wifi
@@ -48,6 +49,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.runtime.*
 import com.example.smartfarm.RetrofitClient
+import com.example.smartfarm.lastAlertTime
+import com.example.smartfarm.notificationLog
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -164,6 +167,34 @@ fun evaluateGasLevel(value: Float, good: Float, medium: Float): Pair<String, Col
         else -> "Good" to Color(0xFF43A047)
     }
 
+fun pushAlert(msg: String) {
+    // Tránh thêm trùng nhiều dòng liên tiếp giống hệt nhau
+    if (notificationLog.isEmpty() || notificationLog.last() != msg) {
+        notificationLog.add(msg)
+    }
+}
+
+@Composable
+fun AlertCard(msg: String, color: Color) {
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp),
+        colors = CardDefaults.outlinedCardColors(containerColor = color.copy(alpha = 0.07f))
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Notifications, contentDescription = null, tint = color)
+            Spacer(Modifier.width(10.dp))
+            Text(msg, fontWeight = FontWeight.Bold, color = color)
+        }
+    }
+}
+
 @Composable
 fun DashboardScreen(navController: NavController) {
     //real time
@@ -191,6 +222,15 @@ fun DashboardScreen(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Dashboard.route
 
+    //notification
+    val soilValueAlert = rememberSensorValue("cam_bien_do_am", "humidity").toFloatOrNull()
+    val tempValueAlert = rememberSensorValue("cam_bien_nhiet_do", "temperature").toFloatOrNull()
+    val showSoilLow = soilValueAlert != null && soilValueAlert < 40
+    val showSoilHigh = soilValueAlert != null && soilValueAlert > 80
+    val showTempLow = tempValueAlert != null && tempValueAlert < 10
+    val showTempHigh = tempValueAlert != null && tempValueAlert > 35
+    val timeString = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+
     //Đánh giá tổng quát
     val (airStatus, airColor) = rememberAirQualityStatus(
         co2 = airValue_co2,
@@ -199,6 +239,8 @@ fun DashboardScreen(navController: NavController) {
         no2 = airValue_no2,
         benzene = airValue_benzene
     )
+
+    val showAirAlert = airStatus != "Good"
 
     // Chuyển đổi giá trị từ String -> Float (nếu lỗi thì về 0)
     val co2Val = airValue_co2.toFloatOrNull() ?: 0f
@@ -214,6 +256,33 @@ fun DashboardScreen(navController: NavController) {
     val (no2Status, no2Color) = evaluateGasLevel(no2Val, 0.1f, 0.2f)
     val (alcoholStatus, alcoholColor) = evaluateGasLevel(alcoholVal, 200f, 400f)
     val (benzeneStatus, benzeneColor) = evaluateGasLevel(benzeneVal, 1f, 5f)
+
+    // Soil Moisture
+    LaunchedEffect(soilValueAlert) {
+        if (showSoilLow) {
+            pushAlert("Soil moisture LOW: $soilValueAlert% ($timeString)")
+        }
+        if (showSoilHigh) {
+            pushAlert("Soil moisture HIGH: $soilValueAlert% ($timeString)")
+        }
+    }
+
+    // Temperature
+    LaunchedEffect(tempValueAlert) {
+        if (showTempLow) {
+            pushAlert("Temperature LOW: $tempValueAlert°C ($timeString)")
+        }
+        if (showTempHigh) {
+            pushAlert("Temperature HIGH: $tempValueAlert°C ($timeString)")
+        }
+    }
+
+    // Air Quality
+    LaunchedEffect(airStatus) {
+        if (airStatus != "Good") {
+            pushAlert("Air quality $airStatus! ($timeString)")
+        }
+    }
 
     Scaffold(
         bottomBar = { BottomNavBar(navController, currentRoute) },
@@ -246,6 +315,22 @@ fun DashboardScreen(navController: NavController) {
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
             ) {
+                if (showSoilLow) {
+                    AlertCard("Soil moisture is LOW! Current: ${soilValueAlert ?: "--"}%", Color(0xFFD32F2F))
+                }
+                if (showSoilHigh) {
+                    AlertCard("Soil moisture is HIGH! Current: ${soilValueAlert ?: "--"}%", Color(0xFF1976D2))
+                }
+                if (showTempLow) {
+                    AlertCard("Temperature is LOW! Current: ${tempValueAlert ?: "--"}°C", Color(0xFF1976D2))
+                }
+                if (showTempHigh) {
+                    AlertCard("Temperature is HIGH! Current: ${tempValueAlert ?: "--"}°C", Color(0xFFD32F2F))
+                }
+                if (showAirAlert) {
+                    AlertCard("Air quality is $airStatus!", airColor)
+                }
+
                 Spacer(Modifier.height(12.dp))
 
                 Row(

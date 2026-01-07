@@ -16,6 +16,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.smartfarm.screen.AppNavHost
 import com.example.smartfarm.ui.theme.SmartfarmTheme
 
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 
 import com.example.smartfarm.screen.LightingScreen
 import com.example.smartfarm.screen.SoilScreen
@@ -23,8 +25,12 @@ import com.example.smartfarm.screen.DoorScreen
 import com.example.smartfarm.screen.AirScreen
 import com.example.smartfarm.screen.FeedingScreen
 import com.example.smartfarm.screen.DashboardScreen
-
 import com.example.smartfarm.ui.theme.SmartfarmTheme
+
+// Lưu log thông báo
+val notificationLog = mutableStateListOf<String>()
+// Lưu thời điểm thông báo cuối cùng cho từng loại cảnh báo
+val lastAlertTime = mutableStateMapOf<String, Long>()
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
